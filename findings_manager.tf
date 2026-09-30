@@ -349,7 +349,7 @@ module "findings_manager_trigger_lambda" {
     S3_BUCKET_NAME              = module.findings_manager_bucket.name
     S3_OBJECT_NAME              = var.rules_s3_object_name
     LOG_LEVEL                   = var.findings_manager_trigger_lambda.log_level
-    SQS_QUEUE_NAME              = aws_sqs_queue.findings_manager_rule_q.name
+    SQS_QUEUE_NAME              = aws_sqs_queue.findings_manager_rule_q.url
     POWERTOOLS_LOGGER_LOG_EVENT = "false"
     POWERTOOLS_SERVICE_NAME     = "securityhub-findings-manager-trigger"
   }
