@@ -2,6 +2,67 @@
 
 This document captures required refactoring on your part when upgrading to a module version that contains breaking changes.
 
+## Upgrading to v8.0.0
+
+### Key Changes v8.0.0
+
+The events, trigger and worker Lambdas now run on [sechubman](https://github.com/carlovoSBP/sechubman) instead of [awsfindingsmanagerlib](https://github.com/schubergphilis/awsfindingsmanagerlib). The `findings-manager-jira` Lambda is unaffected: it has no dependency on either library.
+
+Two consequences of this switch:
+
+- **`rules.yaml` must be rewritten** in sechubman's schema (see "Behaviour" below).
+- **`lambda_runtime` no longer accepts `python3.11`.** sechubman requires Python >= 3.12. This
+  variable is shared by all four Lambdas in this module, including the Jira Lambda, so it is now
+  restricted to `python3.12` module-wide, even though the Jira Lambda itself has no Python version
+  constraint.
+
+### Behaviour (v8.0.0)
+
+sechubman's rule filters map directly onto the Security Hub `get_findings`/`batch_update_findings`
+boto3 API, rather than a custom, narrower matching schema. The table below maps every
+`match_on` key used by this module's own `examples/rules.yaml` onto its sechubman equivalent; see
+sechubman's [documentation](https://carlovosbp.github.io/sechubman/) for the full rule syntax and
+its own migration guide.
+
+| awsfindingsmanagerlib | sechubman |
+|---|---|
+| `note` | `UpdatesToFilteredFindings.Note.Text` |
+| `action: SUPPRESSED` | `UpdatesToFilteredFindings.Workflow.Status: SUPPRESSED` |
+| `match_on.security_control_id` | `Filters.ComplianceSecurityControlId` |
+| `match_on.tags` (a list of `{key, value}`, matching any of them) | `Filters.ResourceTags` (a list of `{Key, Value, Comparison: EQUALS}`; multiple entries are also matched as "any of") |
+| `match_on.resource_id_regexps` | `ExtraFeatures.RegexStringFilters.ResourceId` |
+| `match_on.regions` | `Filters.Region` |
+
+awsfindingsmanagerlib's default filter (`WorkflowStatus` in `NEW`/`NOTIFIED`, applied to every
+rule automatically) and its Jira-compatible JSON note merging (so that suppressing a finding
+doesn't overwrite the `jiraIssue`/`jiraInstance` metadata a ticket integration stored in the
+finding's note) both have to be set explicitly once, via `ManagerConfig.DefaultRuleInput`, if you
+were relying on them:
+
+```yaml
+ManagerConfig:
+  DefaultRuleInput:
+    Filters:
+      WorkflowStatus:
+      - Value: NEW
+        Comparison: EQUALS
+      - Value: NOTIFIED
+        Comparison: EQUALS
+    UpdatesToFilteredFindings:
+      Workflow:
+        Status: SUPPRESSED
+      Note:
+        UpdatedBy: sechubman
+    ExtraFeatures:
+      NoteTextConfig:
+        Mode: jsonUpdate
+        Key: Note
+```
+
+See the updated `examples/rules.yaml` in this repository for a complete, translated file (all four
+of its rules existed in the previous schema too, so it doubles as a worked example of the mapping
+above).
+
 ## Upgrading to v7.0.0
 
 ### Key Changes v7.0.0
