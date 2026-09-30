@@ -1,1 +1,4 @@
-awsfindingsmanagerlib==1.5.0
+# TODO: pin to the actual published release once schubergphilis/sechubman's
+# feat/lambda-integration branch (or successor PR) is merged and released.
+# See https://github.com/carlovoSBP/sechubman/releases for the version number.
+sechubman[lambda]==1.2.0

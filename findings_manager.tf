@@ -25,12 +25,6 @@ data "aws_iam_policy_document" "findings_manager_lambda_iam_role" {
   }
 
   statement {
-    sid       = "EC2DescribeRegionsAccess"
-    actions   = ["ec2:DescribeRegions"]
-    resources = ["*"]
-  }
-
-  statement {
     sid = "SecurityHubAccess"
     actions = [
       "securityhub:BatchUpdateFindings",
@@ -39,14 +33,6 @@ data "aws_iam_policy_document" "findings_manager_lambda_iam_role" {
     resources = [
       "arn:aws:securityhub:${local.account_region}:${local.account_id}:hub/default"
     ]
-  }
-
-  statement {
-    sid = "SecurityHubAccessList"
-    actions = [
-      "securityhub:ListFindingAggregators"
-    ]
-    resources = ["*"]
   }
 
   statement {
@@ -101,7 +87,7 @@ module "findings_manager_events_lambda" {
   name                        = var.findings_manager_events_lambda.name
   create_s3_dummy_object      = false
   description                 = "Lambda to manage Security Hub findings in response to an EventBridge event"
-  handler                     = "securityhub_events.lambda_handler"
+  handler                     = "sechubman.aws_lambda.events.lambda_handler"
   kms_key_arn                 = local.kms_key_arn
   log_retention               = 365
   memory_size                 = var.findings_manager_events_lambda.memory_size
@@ -326,7 +312,7 @@ module "findings_manager_trigger_lambda" {
   name                        = var.findings_manager_trigger_lambda.name
   create_s3_dummy_object      = false
   description                 = "Lambda to manage Security Hub findings in response to S3 rules file uploads"
-  handler                     = "securityhub_trigger.lambda_handler"
+  handler                     = "sechubman.aws_lambda.trigger.lambda_handler"
   kms_key_arn                 = local.kms_key_arn
   log_retention               = 365
   memory_size                 = var.findings_manager_trigger_lambda.memory_size
@@ -398,7 +384,7 @@ module "findings_manager_worker_lambda" {
   name                        = var.findings_manager_worker_lambda.name
   create_s3_dummy_object      = false
   description                 = "Lambda to manage Security Hub findings in response to rules on SQS"
-  handler                     = "securityhub_trigger_worker.lambda_handler"
+  handler                     = "sechubman.aws_lambda.worker.lambda_handler"
   kms_key_arn                 = local.kms_key_arn
   log_retention               = 365
   memory_size                 = var.findings_manager_worker_lambda.memory_size
