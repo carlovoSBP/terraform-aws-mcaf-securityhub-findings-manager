@@ -61,6 +61,11 @@ jobs:
 
           # Removing nonessential files 'https://github.com/aws-powertools/powertools-lambda-layer-cdk/blob/d24716744f7d1f37617b4998c992c4c067e19e64/layer/Python/Dockerfile'
           rm -rf boto* s3transfer* *dateutil* urllib3* six* jmespath*
+          # Every Lambda built by this workflow already gets aws-lambda-powertools from the
+          # shared powertools_layer_arn layer (see findings_manager.tf/jira_lambda.tf); a
+          # dependency accidentally pulling it (and its typing_extensions dependency) back into
+          # requirements.txt should not end up duplicated inside the deployment package too.
+          rm -rf aws_lambda_powertools* typing_extensions*
           find . -name '*.so' -type f -exec strip "{}" \;
           find . -wholename "*/tests/*" -type f -delete
           find . -regex '^.*\(__pycache__\|\.py[co]\)$' -delete
