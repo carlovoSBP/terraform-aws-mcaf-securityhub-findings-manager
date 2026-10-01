@@ -1,1 +1,11 @@
-awsfindingsmanagerlib==1.5.0
+# TODO: pin to the actual published release once schubergphilis/sechubman's
+# feat/lambda-integration branch (or successor PR) is merged and released.
+# See https://github.com/carlovoSBP/sechubman/releases for the version number.
+#
+# Intentionally not using the 'lambda' extra (sechubman[lambda]): it also pulls in
+# aws-lambda-powertools, which this module already provides to every Lambda (including this one)
+# via the shared powertools_layer_arn Lambda layer. Bundling it again here would duplicate it
+# inside the deployment package. pyyaml is pinned directly instead, since (unlike powertools)
+# nothing else provides it.
+sechubman==1.2.0
+pyyaml>=6.0.3

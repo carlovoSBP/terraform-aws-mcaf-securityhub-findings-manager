@@ -24,8 +24,16 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
-        lambda-name: ["securityhub-findings-manager", "findings-manager-jira"]
+        # securityhub-findings-manager now depends on sechubman, which requires Python >= 3.12,
+        # so it is only built for 3.12. findings-manager-jira has no such constraint and keeps
+        # both supported versions.
+        include:
+          - python-version: "3.12"
+            lambda-name: "securityhub-findings-manager"
+          - python-version: "3.11"
+            lambda-name: "findings-manager-jira"
+          - python-version: "3.12"
+            lambda-name: "findings-manager-jira"
 
     steps:
       - name: Checkout repository
@@ -53,10 +61,15 @@ jobs:
 
           # Removing nonessential files 'https://github.com/aws-powertools/powertools-lambda-layer-cdk/blob/d24716744f7d1f37617b4998c992c4c067e19e64/layer/Python/Dockerfile'
           rm -rf boto* s3transfer* *dateutil* urllib3* six* jmespath*
+          # Every Lambda built by this workflow already gets aws-lambda-powertools from the
+          # shared powertools_layer_arn layer (see findings_manager.tf/jira_lambda.tf); a
+          # dependency accidentally pulling it (and its typing_extensions dependency) back into
+          # requirements.txt should not end up duplicated inside the deployment package too.
+          rm -rf aws_lambda_powertools* typing_extensions*
           find . -name '*.so' -type f -exec strip "{}" \;
           find . -wholename "*/tests/*" -type f -delete
           find . -regex '^.*\(__pycache__\|\.py[co]\)$' -delete
-          # Remove dependency lock files shipped inside packages (e.g. awsfindingsmanagerlib/Pipfile.lock).
+          # Remove dependency lock files shipped inside packages (e.g. a library's Pipfile.lock).
           # Inspector scans these as an SBOM and reports phantom CVEs for packages that aren't actually installed.
           find . \( -name 'Pipfile' -o -name 'Pipfile.lock' \) -type f -delete
 
