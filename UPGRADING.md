@@ -59,9 +59,60 @@ ManagerConfig:
         Key: Note
 ```
 
+The script below can be used to easily convert your current `rules.yaml` file to the new format.
+It only converts the `Rules` list itself (the `match_on` -> `Filters`/`ExtraFeatures` mapping from
+the table above); paste the `ManagerConfig` block shown above ahead of its output yourself, since
+that's also where `Note.UpdatedBy` must come from - Security Hub's API rejects a `Note` without
+one.
+
+```python
+import yaml
+
+old_rules = yaml.safe_load(open('rules.yaml'))['Rules']
+
+
+def convert(rule):
+    match_on = rule.get('match_on', {})
+    filters = {}
+
+    if 'security_control_id' in match_on:
+        filters['ComplianceSecurityControlId'] = [
+            {'Value': match_on['security_control_id'], 'Comparison': 'EQUALS'}
+        ]
+    if 'regions' in match_on:
+        filters['Region'] = [
+            {'Value': region, 'Comparison': 'EQUALS'} for region in match_on['regions']
+        ]
+    if 'tags' in match_on:
+        filters['ResourceTags'] = [
+            {'Key': tag['key'], 'Value': tag['value'], 'Comparison': 'EQUALS'}
+            for tag in match_on['tags']
+        ]
+
+    new_rule = {
+        'Filters': filters,
+        'UpdatesToFilteredFindings': {
+            'Workflow': {'Status': rule['action']},
+            'Note': {'Text': rule['note']},
+        },
+    }
+
+    if 'resource_id_regexps' in match_on:
+        new_rule['ExtraFeatures'] = {
+            'RegexStringFilters': {'ResourceId': match_on['resource_id_regexps']}
+        }
+
+    return new_rule
+
+
+rules = {'Rules': [convert(rule) for rule in old_rules]}
+
+print(yaml.dump(rules, sort_keys=False, indent=2))
+```
+
 See the updated `examples/rules.yaml` in this repository for a complete, translated file (all four
 of its rules existed in the previous schema too, so it doubles as a worked example of the mapping
-above).
+above, and of running this exact script against it).
 
 ## Upgrading to v7.0.0
 
