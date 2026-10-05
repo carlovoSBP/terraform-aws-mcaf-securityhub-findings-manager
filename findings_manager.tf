@@ -1,16 +1,3 @@
-# Three separate IAM policies, one per Lambda, replacing a single policy previously shared by all
-# three. Scoped to what each one's code actually calls (verified directly against
-# sechubman.aws_lambda.events/.trigger/.worker):
-# - events: loads rules from S3 (GetObject), and only ever calls securityhub:BatchUpdateFindings
-#   (it matches findings carried by the EventBridge event locally; it never calls GetFindings).
-# - trigger: loads rules from S3 (GetObject) and only ever calls sqs:SendMessage; it makes no
-#   Security Hub calls at all.
-# - worker: never touches S3 (its rule arrives in the SQS message body, not from the bucket); it
-#   calls both securityhub:GetFindings (paginated) and securityhub:BatchUpdateFindings, and
-#   consumes its own queue (sqs:ReceiveMessage/DeleteMessage/GetQueueAttributes).
-# The previous S3ListBucket statement (on S3GetObjectAccess's object-level resource, so it granted
-# nothing - s3:ListBucket is bucket-level) is dropped rather than fixed: nothing in any handler
-# calls ListBucket.
 data "aws_iam_policy_document" "findings_manager_events_lambda_iam_role" {
   statement {
     sid = "TrustEventsToStoreLogEvent"
