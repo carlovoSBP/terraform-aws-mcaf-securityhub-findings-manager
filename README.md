@@ -13,7 +13,8 @@ The Security Hub Findings Manager is a framework designed to automatically manag
 > Deploy this module in the Audit/Security Account of an AWS reference multi-account setup. This setup receives events from all child accounts, providing a comprehensive overview of the organization's security posture.
 
 > [!IMPORTANT]
-> This module relies heavily on [awsfindingsmanagerlib](https://github.com/schubergphilis/awsfindingsmanagerlib/tree/main). For detailed suppression logic information, refer to the library's [documentation](https://awsfindingsmanagerlib.readthedocs.io/en/latest/).
+> This module relies heavily on [sechubman](https://github.com/carlovoSBP/sechubman). For detailed suppression logic information, refer to the library's [documentation](https://carlovosbp.github.io/sechubman/).
+> If you are upgrading from a version of this module that used awsfindingsmanagerlib, see [UPGRADING.md](UPGRADING.md) for the `rules.yaml` schema migration.
 
 ## Components
 
@@ -30,7 +31,7 @@ Here's a high-level overview of the components. For more details, see [Resources
 
 ## Formatting the `rules.yaml` File
 
-An example file is available under `examples/rules.yaml`. For detailed information, see the Rule Syntax section in the [awsfindingsmanagerlib documentation](https://awsfindingsmanagerlib.readthedocs.io/en/latest/#rule-syntax).
+An example file is available under `examples/rules.yaml`. For detailed information, see the sechubman [documentation](https://carlovosbp.github.io/sechubman/), particularly its rule syntax and `Manager`/`ManagerConfig` sections.
 
 ## Deployment Modes
 
