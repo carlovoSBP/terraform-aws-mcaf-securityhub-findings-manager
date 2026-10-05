@@ -1,4 +1,17 @@
-data "aws_iam_policy_document" "findings_manager_lambda_iam_role" {
+# Three separate IAM policies, one per Lambda, replacing a single policy previously shared by all
+# three. Scoped to what each one's code actually calls (verified directly against
+# sechubman.aws_lambda.events/.trigger/.worker):
+# - events: loads rules from S3 (GetObject), and only ever calls securityhub:BatchUpdateFindings
+#   (it matches findings carried by the EventBridge event locally; it never calls GetFindings).
+# - trigger: loads rules from S3 (GetObject) and only ever calls sqs:SendMessage; it makes no
+#   Security Hub calls at all.
+# - worker: never touches S3 (its rule arrives in the SQS message body, not from the bucket); it
+#   calls both securityhub:GetFindings (paginated) and securityhub:BatchUpdateFindings, and
+#   consumes its own queue (sqs:ReceiveMessage/DeleteMessage/GetQueueAttributes).
+# The previous S3ListBucket statement (on S3GetObjectAccess's object-level resource, so it granted
+# nothing - s3:ListBucket is bucket-level) is dropped rather than fixed: nothing in any handler
+# calls ListBucket.
+data "aws_iam_policy_document" "findings_manager_events_lambda_iam_role" {
   statement {
     sid = "TrustEventsToStoreLogEvent"
     actions = [
@@ -19,9 +32,66 @@ data "aws_iam_policy_document" "findings_manager_lambda_iam_role" {
   }
 
   statement {
-    sid       = "S3ListBucketObjects"
-    actions   = ["s3:ListBucket"]
+    sid       = "SecurityHubBatchUpdateAccess"
+    actions   = ["securityhub:BatchUpdateFindings"]
+    resources = ["arn:aws:securityhub:${local.account_region}:${local.account_id}:hub/default"]
+  }
+
+  statement {
+    sid       = "KMSDecryptAccess"
+    actions   = ["kms:Decrypt"]
+    effect    = "Allow"
+    resources = [local.kms_key_arn]
+  }
+}
+
+data "aws_iam_policy_document" "findings_manager_trigger_lambda_iam_role" {
+  statement {
+    sid = "TrustEventsToStoreLogEvent"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:DescribeLogStreams",
+      "logs:PutLogEvents"
+    ]
+    resources = [
+      "arn:aws:logs:${local.account_region}:${local.account_id}:*"
+    ]
+  }
+
+  statement {
+    sid       = "S3GetObjectAccess"
+    actions   = ["s3:GetObject"]
     resources = ["${module.findings_manager_bucket.arn}/*"]
+  }
+
+  statement {
+    sid       = "KMSAccess"
+    actions   = ["kms:Decrypt", "kms:Encrypt", "kms:GenerateDataKey*"]
+    effect    = "Allow"
+    resources = [local.kms_key_arn]
+  }
+
+  statement {
+    sid       = "SQSSendAccess"
+    actions   = ["sqs:SendMessage"]
+    effect    = "Allow"
+    resources = [aws_sqs_queue.findings_manager_rule_q.arn]
+  }
+}
+
+data "aws_iam_policy_document" "findings_manager_worker_lambda_iam_role" {
+  statement {
+    sid = "TrustEventsToStoreLogEvent"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:DescribeLogStreams",
+      "logs:PutLogEvents"
+    ]
+    resources = [
+      "arn:aws:logs:${local.account_region}:${local.account_id}:*"
+    ]
   }
 
   statement {
@@ -36,23 +106,15 @@ data "aws_iam_policy_document" "findings_manager_lambda_iam_role" {
   }
 
   statement {
-    sid = "LambdaKMSAccess"
-    actions = [
-      "kms:Decrypt",
-      "kms:Encrypt",
-      "kms:GenerateDataKey*",
-      "kms:ReEncrypt*"
-    ]
-    effect = "Allow"
-    resources = [
-      local.kms_key_arn
-    ]
+    sid       = "KMSDecryptAccess"
+    actions   = ["kms:Decrypt"]
+    effect    = "Allow"
+    resources = [local.kms_key_arn]
   }
 
   statement {
-    sid = "LambdaSQSAllow"
+    sid = "SQSConsumeAccess"
     actions = [
-      "sqs:SendMessage",
       "sqs:ReceiveMessage",
       "sqs:DeleteMessage",
       "sqs:GetQueueAttributes"
@@ -60,7 +122,6 @@ data "aws_iam_policy_document" "findings_manager_lambda_iam_role" {
     effect    = "Allow"
     resources = [aws_sqs_queue.findings_manager_rule_q.arn]
   }
-
 }
 
 # Push the Lambda code zip deployment package to s3
@@ -116,7 +177,7 @@ module "findings_manager_events_lambda" {
 
   execution_role = {
     create_policy = true
-    policy        = data.aws_iam_policy_document.findings_manager_lambda_iam_role.json
+    policy        = data.aws_iam_policy_document.findings_manager_events_lambda_iam_role.json
   }
 }
 
@@ -342,7 +403,7 @@ module "findings_manager_trigger_lambda" {
 
   execution_role = {
     create_policy = true
-    policy        = data.aws_iam_policy_document.findings_manager_lambda_iam_role.json
+    policy        = data.aws_iam_policy_document.findings_manager_trigger_lambda_iam_role.json
   }
 }
 
@@ -411,7 +472,7 @@ module "findings_manager_worker_lambda" {
 
   execution_role = {
     create_policy = true
-    policy        = data.aws_iam_policy_document.findings_manager_lambda_iam_role.json
+    policy        = data.aws_iam_policy_document.findings_manager_worker_lambda_iam_role.json
   }
 }
 
@@ -440,12 +501,6 @@ resource "aws_sqs_queue" "findings_manager_rule_q" {
   # Queue visibility timeout needs to >= Function timeout
 }
 
-resource "aws_sqs_queue_policy" "findings_manager_rule_sqs_policy" {
-  policy    = data.aws_iam_policy_document.findings_manager_rule_sqs_policy_doc.json
-  queue_url = aws_sqs_queue.findings_manager_rule_q.id
-  region    = var.region
-}
-
 resource "aws_sqs_queue" "dlq_for_findings_manager_rule_q" {
   name              = "DlqForSecurityHubFindingsManagerRuleQueue"
   kms_master_key_id = local.kms_key_arn
@@ -469,24 +524,6 @@ resource "aws_sqs_queue_redrive_allow_policy" "dead_letter_allow_policy" {
     sourceQueueArns   = [aws_sqs_queue.findings_manager_rule_q.arn]
   })
   region = var.region
-}
-
-data "aws_iam_policy_document" "findings_manager_rule_sqs_policy_doc" {
-  statement {
-    actions = [
-      "SQS:SendMessage"
-    ]
-    resources = [aws_sqs_queue.findings_manager_rule_q.arn]
-    principals {
-      identifiers = ["lambda.amazonaws.com"]
-      type        = "Service"
-    }
-    condition {
-      test     = "ArnEquals"
-      values   = [module.findings_manager_trigger_lambda.name]
-      variable = "aws:SourceArn"
-    }
-  }
 }
 
 # The SQS queue with rules triggers the worker lambda
