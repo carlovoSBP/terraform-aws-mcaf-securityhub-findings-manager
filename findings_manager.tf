@@ -501,12 +501,6 @@ resource "aws_sqs_queue" "findings_manager_rule_q" {
   # Queue visibility timeout needs to >= Function timeout
 }
 
-resource "aws_sqs_queue_policy" "findings_manager_rule_sqs_policy" {
-  policy    = data.aws_iam_policy_document.findings_manager_rule_sqs_policy_doc.json
-  queue_url = aws_sqs_queue.findings_manager_rule_q.id
-  region    = var.region
-}
-
 resource "aws_sqs_queue" "dlq_for_findings_manager_rule_q" {
   name              = "DlqForSecurityHubFindingsManagerRuleQueue"
   kms_master_key_id = local.kms_key_arn
@@ -530,23 +524,6 @@ resource "aws_sqs_queue_redrive_allow_policy" "dead_letter_allow_policy" {
     sourceQueueArns   = [aws_sqs_queue.findings_manager_rule_q.arn]
   })
   region = var.region
-}
-
-# Restricts SendMessage to the trigger Lambda's own execution role specifically (rather than, as
-# previously, a Service principal condition that could never match: aws:SourceArn is only
-# populated for AWS-service-to-service invocations, not when a Lambda's own code calls another
-# AWS API directly under its execution role, which is what securityhub_trigger does here).
-data "aws_iam_policy_document" "findings_manager_rule_sqs_policy_doc" {
-  statement {
-    actions = [
-      "SQS:SendMessage"
-    ]
-    resources = [aws_sqs_queue.findings_manager_rule_q.arn]
-    principals {
-      identifiers = [module.findings_manager_trigger_lambda.role_arn]
-      type        = "AWS"
-    }
-  }
 }
 
 # The SQS queue with rules triggers the worker lambda
