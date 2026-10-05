@@ -559,6 +559,12 @@ resource "aws_lambda_event_source_mapping" "sqs_to_worker" {
   maximum_batching_window_in_seconds = 60
   region                             = var.region
 
+  # sechubman.aws_lambda.worker.lambda_handler reports failed records individually via
+  # {"batchItemFailures": [...]}; without this, Lambda ignores that return value and deletes the
+  # entire batch on any successful invocation regardless of which records actually failed, making
+  # the dead-letter queue and redrive policy below unreachable for rule-application errors.
+  function_response_types = ["ReportBatchItemFailures"]
+
   scaling_config {
     maximum_concurrency = 4 #  to prevent Security Hub API rate limits
   }
