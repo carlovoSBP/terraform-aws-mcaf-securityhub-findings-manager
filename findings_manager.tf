@@ -135,7 +135,7 @@ module "findings_manager_events_lambda" {
   name                        = var.findings_manager_events_lambda.name
   create_s3_dummy_object      = false
   description                 = "Lambda to manage Security Hub findings in response to an EventBridge event"
-  handler                     = "sechubman.aws_lambda.events.lambda_handler"
+  handler                     = "awsfindingsmanagerlib.aws_lambda.events.lambda_handler"
   kms_key_arn                 = local.kms_key_arn
   log_retention               = 365
   memory_size                 = var.findings_manager_events_lambda.memory_size
@@ -360,7 +360,7 @@ module "findings_manager_trigger_lambda" {
   name                        = var.findings_manager_trigger_lambda.name
   create_s3_dummy_object      = false
   description                 = "Lambda to manage Security Hub findings in response to S3 rules file uploads"
-  handler                     = "sechubman.aws_lambda.trigger.lambda_handler"
+  handler                     = "awsfindingsmanagerlib.aws_lambda.trigger.lambda_handler"
   kms_key_arn                 = local.kms_key_arn
   log_retention               = 365
   memory_size                 = var.findings_manager_trigger_lambda.memory_size
@@ -432,7 +432,7 @@ module "findings_manager_worker_lambda" {
   name                        = var.findings_manager_worker_lambda.name
   create_s3_dummy_object      = false
   description                 = "Lambda to manage Security Hub findings in response to rules on SQS"
-  handler                     = "sechubman.aws_lambda.worker.lambda_handler"
+  handler                     = "awsfindingsmanagerlib.aws_lambda.worker.lambda_handler"
   kms_key_arn                 = local.kms_key_arn
   log_retention               = 365
   memory_size                 = var.findings_manager_worker_lambda.memory_size
@@ -523,7 +523,7 @@ resource "aws_lambda_event_source_mapping" "sqs_to_worker" {
   maximum_batching_window_in_seconds = 60
   region                             = var.region
 
-  # sechubman.aws_lambda.worker.lambda_handler reports failed records individually via
+  # awsfindingsmanagerlib.aws_lambda.worker.lambda_handler reports failed records individually via
   # {"batchItemFailures": [...]}; without this, Lambda ignores that return value and deletes the
   # entire batch on any successful invocation regardless of which records actually failed, making
   # the dead-letter queue and redrive policy below unreachable for rule-application errors.

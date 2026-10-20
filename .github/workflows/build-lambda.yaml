@@ -24,7 +24,7 @@ jobs:
 
     strategy:
       matrix:
-        # securityhub-findings-manager now depends on sechubman, which requires Python >= 3.12,
+        # securityhub-findings-manager now depends on awsfindingsmanagerlib v2, which requires Python >= 3.12,
         # so it is only built for 3.12. findings-manager-jira has no such constraint and keeps
         # both supported versions.
         include:

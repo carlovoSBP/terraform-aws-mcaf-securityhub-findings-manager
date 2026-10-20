@@ -236,7 +236,7 @@ variable "kms_key_configuration" {
 }
 
 # Modify the build-lambda.yaml GitHub action if you modify the allowed versions to ensure a proper zip is created.
-# python3.11 is no longer supported: sechubman (used by the findings-manager Lambdas) requires
+# python3.11 is no longer supported: awsfindingsmanagerlib v2 (used by the findings-manager Lambdas) requires
 # Python >= 3.12. This variable is shared with the Jira Lambda, so it is restricted here too.
 variable "lambda_runtime" {
   type        = string

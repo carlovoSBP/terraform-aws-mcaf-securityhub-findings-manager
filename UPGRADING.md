@@ -6,25 +6,25 @@ This document captures required refactoring on your part when upgrading to a mod
 
 ### Key Changes v8.0.0
 
-The events, trigger and worker Lambdas now run on [sechubman](https://github.com/carlovoSBP/sechubman) instead of [awsfindingsmanagerlib](https://github.com/schubergphilis/awsfindingsmanagerlib). The `findings-manager-jira` Lambda is unaffected: it has no dependency on either library.
+The events, trigger and worker Lambdas now run on [awsfindingsmanagerlib](https://github.com/schubergphilis-ep/awsfindingsmanagerlib) 2.x, a complete rewrite of the 1.x library with a different rules schema. The `findings-manager-jira` Lambda is unaffected: it has no dependency on either library.
 
 Two consequences of this switch:
 
-- **`rules.yaml` must be rewritten** in sechubman's schema (see "Behaviour" below).
-- **`lambda_runtime` no longer accepts `python3.11`.** sechubman requires Python >= 3.12. This
+- **`rules.yaml` must be rewritten** in awsfindingsmanagerlib 2.x's schema (see "Behaviour" below).
+- **`lambda_runtime` no longer accepts `python3.11`.** awsfindingsmanagerlib 2.x requires Python >= 3.12. This
   variable is shared by all four Lambdas in this module, including the Jira Lambda, so it is now
   restricted to `python3.12` module-wide, even though the Jira Lambda itself has no Python version
   constraint.
 
 ### Behaviour (v8.0.0)
 
-sechubman's rule filters map directly onto the Security Hub `get_findings`/`batch_update_findings`
+awsfindingsmanagerlib 2.x's rule filters map directly onto the Security Hub `get_findings`/`batch_update_findings`
 boto3 API, rather than a custom, narrower matching schema. The table below maps every
-`match_on` key used by this module's own `examples/rules.yaml` onto its sechubman equivalent; see
-sechubman's [documentation](https://carlovosbp.github.io/sechubman/) for the full rule syntax and
-its own migration guide.
+`match_on` key used by this module's own `examples/rules.yaml` onto its 2.x equivalent; see
+the library's [documentation](https://schubergphilis-ep.github.io/awsfindingsmanagerlib/) for the full rule syntax and
+its own [UPGRADING.md](https://github.com/schubergphilis-ep/awsfindingsmanagerlib/blob/main/UPGRADING.md) migration guide.
 
-| awsfindingsmanagerlib | sechubman |
+| awsfindingsmanagerlib 1.x | awsfindingsmanagerlib 2.x |
 |---|---|
 | `note` | `UpdatesToFilteredFindings.Note.Text` |
 | `action: SUPPRESSED` | `UpdatesToFilteredFindings.Workflow.Status: SUPPRESSED` |
@@ -33,7 +33,7 @@ its own migration guide.
 | `match_on.resource_id_regexps` | `ExtraFeatures.RegexStringFilters.ResourceId` |
 | `match_on.regions` | `Filters.Region` |
 
-awsfindingsmanagerlib's default filter (`WorkflowStatus` in `NEW`/`NOTIFIED`, applied to every
+awsfindingsmanagerlib 1.x's default filter (`WorkflowStatus` in `NEW`/`NOTIFIED`, applied to every
 rule automatically) and its Jira-compatible JSON note merging (so that suppressing a finding
 doesn't overwrite the `jiraIssue`/`jiraInstance` metadata a ticket integration stored in the
 finding's note) both have to be set explicitly once, via `ManagerConfig.DefaultRuleInput`, if you
@@ -52,7 +52,7 @@ ManagerConfig:
       Workflow:
         Status: SUPPRESSED
       Note:
-        UpdatedBy: sechubman
+        UpdatedBy: awsfindingsmanagerlib
     ExtraFeatures:
       NoteTextConfig:
         Mode: jsonUpdate

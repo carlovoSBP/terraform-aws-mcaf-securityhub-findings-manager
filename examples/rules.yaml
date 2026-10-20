@@ -1,5 +1,5 @@
-# Comments. See "Formatting the rules.yaml File" in the README, and sechubman's rule syntax
-# documentation, for the full schema: https://carlovosbp.github.io/sechubman/
+# Comments. See "Formatting the rules.yaml File" in the README, and awsfindingsmanagerlib's rule syntax
+# documentation, for the full schema: https://schubergphilis-ep.github.io/awsfindingsmanagerlib/
 ManagerConfig:
   DefaultRuleInput:
     Filters:
@@ -12,7 +12,7 @@ ManagerConfig:
       Workflow:
         Status: SUPPRESSED
       Note:
-        UpdatedBy: sechubman
+        UpdatedBy: awsfindingsmanagerlib
     ExtraFeatures:
       NoteTextConfig:
         Mode: jsonUpdate

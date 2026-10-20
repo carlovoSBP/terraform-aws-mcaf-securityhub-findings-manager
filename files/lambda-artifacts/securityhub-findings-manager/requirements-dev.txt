@@ -1,1 +1,1 @@
-sechubman[lambda]
+awsfindingsmanagerlib[lambda]
